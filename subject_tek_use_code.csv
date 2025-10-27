@@ -1,0 +1,37 @@
+﻿code,descriptor,subject_tek_use,subj_group
+51,subject_tek_use___51,Archaeological sites,Sites
+52,subject_tek_use___52,Culturally Significant Sites,Sites
+53,subject_tek_use___53,Human ways of Life,Traditional Ways of Life
+54,subject_tek_use___54,Subsistence resources,Subsistence resources
+55,subject_tek_use___55,Personhood of Land,Traditional Ways of Life
+56,subject_tek_use___56,Ecosystem structure,Biophysical Characteristics
+57,subject_tek_use___57,Wildlife (general),Fish & Wildlife
+58,subject_tek_use___58,Plants (general),Plants
+59,subject_tek_use___59,Species Range (animals),Fish & Wildlife
+60,subject_tek_use___60,Species Range (plants),Plants
+61,subject_tek_use___61,Population dynamics (animals),Fish & Wildlife
+62,subject_tek_use___62,Population dynamics (plants),Plants
+63,subject_tek_use___63,Phenology (general),Climate
+64,subject_tek_use___64,Phenology (animal),Climate
+65,subject_tek_use___65,Phenology (plants),Climate
+66,subject_tek_use___66,Species behavior,Fish & Wildlife
+67,subject_tek_use___67,Water (general),Water
+68,subject_tek_use___68,Water Quality,Water
+69,subject_tek_use___69,Water Quantity,Water
+70,subject_tek_use___70,Air Quality,Air Quality
+71,subject_tek_use___71,Soil Quality,Soil Quality
+72,subject_tek_use___72,Navigation,Navigation
+73,subject_tek_use___73,Climate Change,Climate
+74,subject_tek_use___74,Weather,Climate
+75,subject_tek_use___75,Environmental Justice,Environmental Justice
+76,subject_tek_use___76,Fire / Fire occurrence,Fire
+77,subject_tek_use___77,Habitat Loss,Habitat
+78,subject_tek_use___78,Habitat related,Habitat
+79,subject_tek_use___79,Economics,Economics
+80,subject_tek_use___80,Fisheries,Fish & Wildlife
+81,subject_tek_use___81,Pollution/Contamination,Human Health
+82,subject_tek_use___82,Health,Human Health
+83,subject_tek_use___83,Geology,Biophysical Characteristics
+84,subject_tek_use___84,Noise,Fish & Wildlife
+85,subject_tek_use___85,General/Unspecific,General
+555,subject_tek_use___555,Other {subject_tek_use_oth},Other

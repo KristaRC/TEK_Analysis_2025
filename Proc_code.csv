@@ -1,0 +1,16 @@
+﻿code,procedure_name,group,binary_subst
+1,Boilerplate,Non-substantive,No
+2,Table of Contents,Non-substantive,No
+3,False Positive,REMOVE,No
+4,Glossary / Index,Non-substantive,No
+5,Citation,Non-substantive,No
+6,Ecological Modeling,Substantive,Yes
+7,Baseline Data Collection,Substantive,Yes
+8,Aspirational statement--> integrated into CURRENT project,REMOVE,No
+16,Aspirational statement--> FUTURE intent to use,REMOVE,No
+9,Consultation,Substantive,Yes
+10,Public Comment (DO NOT CLICK THIS),REMOVE,No
+11,Impact Assessment,Substantive,Yes
+12,Mitigation Strategies,Substantive,Yes
+13,Monitoring & Adaptive Management,Substantive,Yes
+14,Unclear,REMOVE,No

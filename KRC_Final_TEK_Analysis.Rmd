@@ -1,0 +1,421 @@
+---
+title: "Final_TEK_Analysis"
+author: "Krista Romero-Cardenas"
+date: "2025-10-07"
+output: html_document
+---
+
+```{r}
+#install.packages("viridis")
+#install.packages("rlang")
+
+library(knitr)
+library(gt)
+library(dplyr)
+library(viridis) 
+library(readr)
+library(tidyverse)
+```
+#check working directory:
+```{r}
+#getwd()
+setwd("/Users/kristalina/Documents/TEK Analysis Practice")
+```
+
+#will need to use full original data set due to coding style. (fe: a citation reference is showing in "section question", but if we remove that column, the info traceability does now work) 
+```{r}
+ods_tek <- read_csv("2025NEPATEKStudy_DATA_10.8.2025.csv")
+View(ods_tek)
+```
+ 
+```{r}
+##get frequencies by AGENCY for completed EISs, & Remove 'NA's
+
+Record_ID_completed<- ods_tek %>% 
+ filter(tek_eis_description_complete==2) %>%
+ select(record_id, agency) |> 
+   drop_na()
+Record_ID_completed
+
+Everything_for_completed_EIS<- ods_tek %>%
+  filter(record_id %in% Record_ID_completed$record_id)
+
+Freq_Agency <- Everything_for_completed_EIS %>%
+  drop_na(agency) %>%
+ count(agency,sort=TRUE)
+Freq_Agency
+
+```
+
+```{r}
+#exported table
+write_csv(Freq_Agency, file="FEISs by Agency_10.2025.csv")
+```
+
+#using the Redcap 708 FEIS sample population, we are pulling the # of FEISs per agency
+```{r}
+Agency_Freq_of_708 <- ods_tek  |> 
+  drop_na(agency) |> 
+  count(agency,sort=TRUE)
+Agency_Freq_of_708
+# tibble: 47 x 2
+# Includes sum of 47 agency FEIS/records 
+# (708 agency SS sum)
+```
+
+#Now we need to load in the NEPAccess database file with ~4k FEIS 
+```{r}
+library(readxl)
+#Load Egoitz(NLP) full FEIS population size  (3,945 popultation)
+
+Egoitz_EIS_list <- read_excel("AGENCY_NEPAccess_Final.xlsx", skip=1)
+
+Egoitz_EIS_list <- Egoitz_EIS_list %>% 
+    rename(
+          Agency = `Agriculture Research Service`,
+          W.Records = '2...2',
+           W.Documents = '2...3',
+           W.O.Records = '2...4',
+           W.O.Documents = '2...5'
+           )
+View(Egoitz_EIS_list)
+# tibble: 94 x 5
+#Includes the “Agency” & 4 columns of records
+# There are a total of 94 agencies that have an EIS in NEPAccess
+```
+
+```{r}
+#here we are using the 47 agencies in the 708 sample size "Agency_Freq_of_708" and adding in (left join) of Egoitz NEPAccess database records.
+
+agency.prop.4k_708<- 
+  left_join(Agency_Freq_of_708, Egoitz_EIS_list, by = join_by(agency==Agency))
+
+agency.prop.4k_708<- agency.prop.4k_708 %>%  #col(n)=708 sample size; col(W.O.Docs)=3,943
+  select(agency,n,W.O.Documents) %>% 
+mutate(agency_prop_708 = round(n / W.O.Documents,3)) %>% 
+rename(Sample_of_Population=n, Population= W.O.Documents, Agency_Population_Ratio = agency_prop_708) %>% 
+   relocate(Population, .before=Sample_of_Population)
+
+agency.prop.4k_708
+```
+
+#now I want to add another column into agency.prop.4k_708 to include the 250 sample size
+
+```{r}
+SS_4k_708_247 <- left_join(
+  Freq_Agency, agency.prop.4k_708, 
+  by = join_by(agency==agency)) %>%
+  rename(
+    `Study Sample Size` = n,
+    `NEPAccess Repository Sample` = Population,
+    `708 TEK Sample Size` = Sample_of_Population
+  ) |> 
+  select(
+    agency,
+    `NEPAccess Repository Sample`,
+    `708 TEK Sample Size`,
+    `Study Sample Size`
+  )
+
+```
+
+#Calculate ratio of population sample (~4k) to TEK sample size (708); and 708 sample size with 247 FEIS sample size
+```{r}
+SS_4k_708_247 <- SS_4k_708_247 %>%
+  #Calculate ratio from ~4k data repository sample to 708 sample 
+  mutate(
+    `Repository_to_TEK_Ratio` = round(`708 TEK Sample Size` / `NEPAccess Repository Sample`, 3),
+#Now, Calculate ratio from 708 sample with 247 investigated sample size
+    `708_TEK_Ratio_to_247_ss` = round(`Study Sample Size` / `708 TEK Sample Size`, 3)
+  ) %>%
+  #below I am putting the ratio columns in the appropriate order
+  relocate(`Repository_to_TEK_Ratio`, .after = `NEPAccess Repository Sample`) %>%
+  relocate(`708_TEK_Ratio_to_247_ss`, .after = `708 TEK Sample Size`)
+SS_4k_708_247
+```
+
+
+```{r}
+print(SS_4k_708_247, n = Inf)
+
+```
+
+###PIVOT
+
+#clean up data - removing false positives for "Categories of TEK use"
+```{r}
+# remove false positives
+TEK_mentions_ss<- Everything_for_completed_EIS%>% 
+  filter(procedural_use!=3 & procedural_use!=8 & procedural_use!=10 & procedural_use!=14 & procedural_use!=16 & redcap_repeat_instrument=="tek_repeats") 
+#!= means does not equal
+#we are removing false positive and unclear, keeping repeat mentions
+ nrow(TEK_mentions_ss)
+
+```
+#remember that you kept the illegible in because not all records/FEIS were marked
+
+
+#Total TEK terms and their frequencies, (including those with 0 mentions)
+```{r}
+#	TEK Term used --> [tek_term_used, question #25], 1-18, 
+
+tek_term<- read_csv("tek_term_code.csv")
+colnames(tek_term)
+
+total_tek_term_count <- left_join(TEK_mentions_ss, tek_term, by = c("tek_term_used" = "code"))
+
+total_tek_term_count <- total_tek_term_count %>%
+ drop_na(tek_term_name) %>%
+count(tek_term_name) %>%
+ arrange(desc(n))
+total_tek_term_count
+
+```
+
+```{r}
+sum(total_tek_term_count$n)
+
+# dim(total_tek_term_count)
+# tibble 11 x 2
+# provides tek_tern_name and their count (n)
+# sum(n) = 961
+
+```
+
+# Table export of FEIS Agency
+```{r}
+write_csv(total_tek_term_count, file="TEK Term Count_FINAL.csv")
+```
+Results from above: of 708 FEIS; we analyzed 247 FEIS with 961 mentions
+
+
+
+#SEPARATE Local Knowledge  and create 2 datasets (1 for LK & TEK) & (indicator variables for a complete TEK set)
+--> these will be mentions/repeats, not record_ids, but it could affect record_ids
+
+```{r}
+proc_code <- read.csv("Proc_code.csv")
+
+#we are going to add a column to proc code
+#now we join to add the proc name as a column to our data
+TEK_proc_quest<- left_join(TEK_mentions_ss, proc_code, join_by(procedural_use==code)) #mving forward you can change 'proc_code'
+TEK_proc_quest$procedure_name #code above gives column as vector
+TEK_proc_quest$proc_bin #code above gives column as vector
+```
+
+
+#dataset for LOCAL KNOWLEDGE
+TEK : # 1,2, 4-10, 14, 15, 16, 17, 18
+LK : #3, 11, 12, 13
+```{r}
+#LK_sample
+
+LK_sample<- TEK_proc_quest%>%
+  filter(tek_term_used %in% c(3, 11, 12, 13)) 
+LK_sample
+#349 mentions
+```
+```{r}
+dim(LK_sample)
+# 349 x 78 
+# 349 mentions of LK related terms
+```
+
+
+```{r}
+#TEK_sample
+
+TEK_sample<-TEK_proc_quest%>%
+  filter(tek_term_used %in% c(1, 2, 4:10, 14, 15, 16, 17, 18)) 
+TEK_sample
+#612 mentions
+```
+
+```{r}
+dim(TEK_sample)
+# 612 x 78
+# 612 mentions of TEK and related terms
+```
+
+
+#Create a new variable with combined LK & TEK - creating "indicator variable"
+```{r}
+TEK_LK_combined <- TEK_proc_quest %>% 
+  mutate(tek_term_type = if_else((tek_term_used %in% c(3, 11, 12, 13)), "LK", "TEK"))   #mutate allows to add a column
+TEK_LK_combined
+```
+for code above we assigned the proc-code 'names' BP, MM to when they were numbers before etc)
+
+
+#Now lets try plotting proc_use question
+```{r}
+TEK_proc_counts<- TEK_proc_quest %>%
+  drop_na(procedural_use) %>%
+ # group_by(tek_term_type) %>% 
+  count(procedure_name, sort = TRUE)
+TEK_proc_counts
+```
+
+```{r}
+procedural_use_figure <- ggplot(TEK_proc_counts,aes(y= reorder(procedure_name,n), x=n))+
+  geom_bar(stat= "identity")+
+  geom_text(stat= "identity", aes(label=n), hjust=-.3)+
+  xlim(0,400) +
+  labs(y= "TEK Utilization in FEIS",
+       x= "Frequency of Mentions",
+       title = "Frequency of TEK Use by Thematic Category")
+procedural_use_figure
+#code above give the procedure type and their sum of counts
+```
+```{r}
+sum(TEK_proc_counts$n)
+```
+
+## From above "TEK_proc_counts" has 10 categories, need to create Proc Bins from 10 categories to 4 groups
+#will then need to remove "unclear"
+```{r}
+# Define binning function
+code_to_bin <- function(code) {
+  if (code %in% c(2, 4, 1, 5)) {
+    return("Procedural")
+  } else if (code %in% c(6, 7, 11)) {
+    return("Analysis")
+  } else if (code == 9) {
+    return("Consultation")
+  } else if (code %in% c(13, 12)) {
+    return("Mitigation & Monitoring")
+  } else if (code == 14) {
+    return("Unclear")
+  } else {
+    return(NA)
+  }
+}
+
+# Apply binning function
+proc_code$proc_bin <- sapply(proc_code$code, code_to_bin)
+
+# Remove rows where proc_bin is "Unclear"
+proc_code <- proc_code[proc_code$proc_bin != "Unclear", ]
+```
+
+
+```{r}
+#now we join to add the proc name as a column to our data
+proc_LK_TEK<- left_join(TEK_LK_combined, proc_code, join_by(procedural_use==code)) 
+
+proc_LK_TEK_counts <- proc_LK_TEK %>%
+  drop_na(proc_bin) %>%
+  group_by(tek_term_type) %>% 
+  count(proc_bin,sort = TRUE)
+proc_LK_TEK_counts
+
+```
+
+```{r}
+
+# Reorder tek_term_type with TEK first
+proc_LK_TEK_counts$tek_term_type <- factor(
+  proc_LK_TEK_counts$tek_term_type,
+  levels = c("TEK", "LK")
+)
+
+ggplot(proc_LK_TEK_counts, aes(
+  y = reorder(proc_bin, n),
+  x = n,
+  fill = tek_term_type
+)) +
+  geom_bar(stat = "identity", position = position_dodge2(reverse = TRUE)) +
+  geom_text(
+    aes(label = n),
+    position = position_dodge2(width = 0.9, reverse = TRUE),
+    hjust = -0.3
+  ) +
+  xlim(0, 350) +
+  labs(
+    y = "TEK Use Categories",
+    x = "Frequency",
+    title = "TEK Procedural Categories",
+    fill = "TEK Term Type"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "TEK" = "#A6611A",  # Earthy red-brown
+      "LK"  = "#4393C3"   # Turquoise blue
+    )
+  ) +
+  theme_minimal(base_size = 12)
+
+```
+
+
+
+FISHER EXACT TEST CHATGBT:
+```{r}
+# Step 1: Create your 5x2 matrix
+tek_agency <- matrix(c(
+  60, 26,   # Forest Service
+  22, 9,    # Bureau of Land Management
+  15, 7,    # U.S. Army Corps of Engineers
+  11, 7,    # NOAA
+  9, 5      # National Park Service
+), 
+nrow = 5, 
+byrow = TRUE)
+
+# Step 2: Add labels for clarity
+rownames(tek_agency) <- c("Forest Service", 
+                          "Bureau of Land Management", 
+                          "US Army Corps", 
+                          "NOAA", 
+                          "National Park Service")
+colnames(tek_agency) <- c("Substantive", "Non_Substantive")
+
+# Step 3: Run Fisher's Exact Test
+fisher_result <- fisher.test(tek_agency)
+
+# Step 4: View results
+fisher_result
+
+```
+
+
+
+
+**** GOT STUCK HERE
+
+```{r}
+ggplot(TEK_proc_counts,aes(y= reorder(procedure_name,n), x=n, fill=tek_term_type ))+ 
+  geom_bar(stat= "identity", position="dodge")+
+  geom_text(stat= "identity", aes(label=n, fill=tek_term_type), position=position_dodge(width=1), hjust=-.3)+
+  xlim(0,250) +
+  labs(y= "TEK Use Categories",
+       x= "Frequency",
+       title = "TEK Procedural Categories")
+ #      fill= "TEK Term Type") +
+#  scale_fill_discrete(breaks=c("TEK","LK"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##Fishers Exact Test
+
+
+
+
+
+
+
+
