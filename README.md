@@ -14,7 +14,7 @@ R Markdown file used to run all data cleaning, analysis, and figure generation.
 **(Rmd) RenderedPDF_Final_TEK_Analysis.Rmd**  (extra)
 
 To reproduce results, download the following supporting datasets into your environment:  
-- `AGENCY_NEPAccess_Final
+- `AGENCY_NEPAccess_Final`
 - `tek_feis_total_counts.csv`  
 - `tek_term_code.csv`  
 - `Proc_code.csv`  
