@@ -7,9 +7,12 @@ output:
   html_document: default
 ---
 
+
 ```{r}
-#install.packages("viridis")
-#install.packages("rlang")
+if(!require("viridis")) install.packages("viridis")
+if(!require("rlang")) install.packages("rlang")
+if(!require("tidyverse")) install.packages("tidyverse")
+if(!require("here")) install.packages("here")
 
 #tinytex::install_tinytex()
 library(knitr)
@@ -18,37 +21,47 @@ library(dplyr)
 library(viridis) 
 library(readr)
 library(tidyverse)
+library(here)
 ```
 #check working directory:
 ```{r}
+here()
 #getwd()
-#setwd("/Users/kristalina/Documents/TEK Analysis Practice")
 ```
 
-#will need to use full original data set due to coding style. (fe: a citation reference is showing in "section question", but if we remove that column, the info traceability does now work) 
+# will need to use full original data set due to coding style. 
 ```{r}
 ods_tek <- read_csv("2025NEPATEKStudy_DATA_10.8.2025.csv")
 #View(ods_tek)
 ```
  
+# Tidy-data step:
+
+Clean coding to identify the record_ids that were analyzed/completed 
 ```{r}
 ##get frequencies by AGENCY for completed EISs, & Remove 'NA's
 
 Record_ID_completed<- ods_tek %>% 
  filter(tek_eis_description_complete==2) %>%
- select(record_id, agency) |> 
+ select(record_id, agency) |> #record_id is a unique identifier
    drop_na()
+#   drop_na()
 Record_ID_completed
 
 Everything_for_completed_EIS<- ods_tek %>%
   filter(record_id %in% Record_ID_completed$record_id)
+Everything_for_completed_EIS
+```
 
+
+```{r}
 Freq_Agency <- Everything_for_completed_EIS %>%
   drop_na(agency) %>%
  count(agency,sort=TRUE)
 Freq_Agency
-
 ```
+
+
 
 ```{r}
 #exported table of 
@@ -56,7 +69,7 @@ Freq_Agency
 write_csv(Freq_Agency, file="FEISs by Agency_10.2025.csv")
 ```
 
-#using the Redcap 708 FEIS sample population, we are pulling the # of FEISs per agency
+#using the Redcap 708 FEIS sample population, we are pulling the # of FEISs per agency, dropping NAs
 ```{r}
 Agency_Freq_of_708 <- ods_tek  |> 
   drop_na(agency) |> 
@@ -66,8 +79,9 @@ Agency_Freq_of_708
 # Includes sum of 47 agency FEIS/records 
 # (708 agency SS sum)
 ```
-#Now we need to load in the NEPAccess database file with ~4k FEIS 
 
+# Continue loading in needed datasets 
+#Now we need to load in the NEPAccess NLP data file AGENCY_NEPAccess_Final
 ```{r}
 library(readxl)
 #Load Egoitz(NLP) full FEIS population size  (3,945 popultation)
@@ -88,7 +102,7 @@ Egoitz_EIS_list <- Egoitz_EIS_list %>%
 # There are a total of 94 agencies that have an EIS in NEPAccess
 ```
 
-
+# Sample Size for Ratio Table
 
 ```{r}
 #here we are using the 47 agencies in the 708 sample size "Agency_Freq_of_708" and adding in (left join) of Egoitz NEPAccess database records.
@@ -155,16 +169,6 @@ colnames(SS_4k_708_247)
 #renaming the column names to prep for table export
 library(dplyr)
 
-# SS_4k_708_247_clean <- SS_4k_708_247 %>%
-#   rename(
-#     Agency = agency,
-#     `NEPAccess Repository Sample` = NEPAaccess Repository Sample,
-#     `Repository to TEK Ratio` = Repository_to_TEK_Ratio,
-#     `708 TEK Sample Size` = 708 TEK Sample Size,
-#     `TEK Ratio to Study Sample` = `708_TEK_Ratio_to_247_ss`,
-#     `Study Sample Size` = Study Sample Size
-#   )
-
 SS_4k_708_247_clean <- SS_4k_708_247 %>%
   rename(
     Agency = agency,
@@ -174,10 +178,11 @@ SS_4k_708_247_clean <- SS_4k_708_247 %>%
     `708 TEK Ratio to Study Sample` = `708_TEK_Ratio_to_247_ss`,
     `Study Sample Size` = `Study Sample Size`
   )
-
 ```
 
 
+
+# Exporting "Understanding Sample Sizes" Table
 ```{r}
 library(gt)
 
@@ -198,7 +203,7 @@ table_export
 
 ###PIVOT
 
-#clean up data - removing false positives for "Categories of TEK use"
+#clean up data - removing false positives for Question "Categories of TEK use"
 ```{r}
 # remove false positives
 TEK_mentions_ss<- Everything_for_completed_EIS%>% 
@@ -206,12 +211,11 @@ TEK_mentions_ss<- Everything_for_completed_EIS%>%
 #!= means does not equal
 #we are removing false positive and unclear, keeping repeat mentions
  nrow(TEK_mentions_ss)
-
 ```
 #remember that you kept the illegible in because not all records/FEIS were marked
 
-
-#Total TEK terms and their frequencies, (including those with 0 mentions)
+# TEK Term Types used
+# Total TEK terms and their frequencies, (including those with 0 mentions)
 ```{r}
 #	TEK Term used --> [tek_term_used, question #25], 1-18, 
 
@@ -280,7 +284,6 @@ TEK_proc_quest<- TEK_mentions_ss |>
 #TEK_proc_quest$procedure_name #code above gives column as vector
 #TEK_proc_quest$proc_bin #code above gives column as vector
 ```
-
 
 
 #dataset for LOCAL KNOWLEDGE
@@ -547,6 +550,7 @@ Long_top_5 , aes(
        title = "Nominal vs. Substantive FEIS")
 plotting_fishers
 ```
+
 #pretty up code above (Chatgbt)
 ```{r}
 library(ggplot2)
@@ -603,17 +607,17 @@ ggsave("Nom.Sub_top5agencies.tif", dpi = 300)
 #Column name:(code = 51-80 ; subject_tek_use = Archaeology)
 
 ```{r}
-subject_use_wide<- TEK_proc_quest %>% 
+subject_use_wide<- TEK_proc_quest %>% #we did wide format because e/subject has its own column
   select(record_id, register_date, tek_term_type, starts_with("subject_tek_use___"))
-subject_use_wide #use this to create long format of data
+subject_use_wide #use this to create long format of data, 
 
 #pivot wide subject use columns to long format
 record_subject <- subject_use_wide %>% 
   pivot_longer( #turned subject columns from wide to long
-    !c(record_id, register_date, tek_term_type), 
-    names_to = "tek_subject_matter",
+    !c(record_id, register_date, tek_term_type), #not pivoting these columns
+    names_to = "tek_subject_matter", #creating column for subject number (from column name)
     names_prefix = "subject_tek_use___",
-    values_to = "present",
+    values_to = "present", #where the O and 1 / presence vs absence will go
     names_transform = list(tek_subject_matter = as.integer)
   ) %>% 
   filter (present ==1) %>% #only keep rows where the subject was present for record present ==1)
@@ -621,10 +625,15 @@ record_subject <- subject_use_wide %>%
  # distinct() %>%  #remove duplicates<- OMG THIS WAS THE ERROR
   select(!present) # remove present column (not information)
 record_subject
+
+# record_subject includes 1,154 entries
 ```
+
+
 
 ```{r}
 library(tidyverse)
+#adding the names back in and counting the instances of each subject
 
 TEK_subject_quest_subjects <- record_subject %>%
   left_join(
@@ -633,6 +642,7 @@ TEK_subject_quest_subjects <- record_subject %>%
   count(subject_tek_use, sort = TRUE)
 
 ```
+
 ```{r}
 sum(TEK_subject_quest_subjects$n)
 #total count of subject mentions = 1154
@@ -648,6 +658,10 @@ ggplot(TEK_subject_quest_subjects, aes(y= reorder(subject_tek_use,n), x=n))+
        title = "Frequency of TEK Subject Themes in FEIS")
 
 ```
+```{r}
+sum(TEK_subject_quest_subjects$n)
+```
+
 
 ```{r}
 library(ggplot2)
@@ -684,6 +698,9 @@ total_subject_categories_barplot
 ggsave("total_subject_categories_barplot.tif", dpi = 300)
 ```
 
+```{r}
+ggsave( "figures/total_subject_categories_barplot.tif",total_subject_categories_barplot, device= "tiff", width = 18, height = 22, units="cm", dpi = 600)
+```
 
 
 
@@ -739,6 +756,11 @@ ggplot(subj_bin_counts, aes(
  # xlim(0, max(subject_counts$count) * 1.15)
 
 ```
+
+```{r}
+sum(subj_bin_counts$count)
+```
+
 
 
 ##Frequency of subject themes for all agencies (appendix)
@@ -816,7 +838,6 @@ for (agency_name in unique (agencies_subject_quest$agency)) {
    #       axis.text.x = element_text(angle = 45, hjust = 1))
  print(agency_subject_plot)
 }
-
 ```
 
 # re-run code above to modify spacing (Chatgbt help formatting)
@@ -900,9 +921,13 @@ for (agency_name in unique(agencies_subject_quest$agency)) {
       plot.title = element_text(hjust = 0.5, face = "bold")
     )
   
-  ggsave(plot = agency_subject_plotS, 
-         filename = paste0("subject-type-", agency_name,".png"))
-  print(agency_subject_plotS)
+  # ggsave(plot = agency_subject_plotS, 
+  #        filename = paste0("subject-type-", agency_name,".png"))
+  # print(agency_subject_plotS)
+  
+  
+  #export tables above into Figure folder  
+  ggsave(paste0("figures/subject-type-", agency_name,".tiff"), agency_subject_plotS, device= "tiff", width = 18, height = 22, units="cm", dpi = 600)
 }
 ```
 
@@ -927,19 +952,19 @@ Top_6_FEIS_agency <- agencies_subject_quest  %>%
                        ordered=TRUE))
 
 #now plot it!
-ggplot(Top_6_FEIS_agency, aes(x = tek_term_type, y = count, fill = subj_group)) +
+Top6AgencySubjectUse <- ggplot(Top_6_FEIS_agency, aes(x = tek_term_type, y = count, fill = subj_group)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
   geom_text(aes(label = count), 
             position = position_dodge(width = 0.9), 
             vjust = -0.5, size = 1.8) +
   facet_wrap(~agency) +
-  labs(y = "Frequency of Subject mentions",
+  labs(y = "Frequency of Subjects",
        x = NULL, #"TEK vs LK",
-       title = "Top Agency Usage per Subject Group",
+    #   title = "Top Agency Usage per Subject Group",
        fill = "Subject Themes") +
   scale_fill_manual(values = cols) +
    scale_y_continuous(expand = expansion(c(0, 0.2))) +
-  theme(strip.text.x = element_text(size = 5),
+  theme(strip.text.x = element_text(size = 7),
         axis.text.x = element_text(angle = 45, hjust = 1), 
         legend.position="bottom",
         legend.text = element_text(size=8),
@@ -948,12 +973,12 @@ ggplot(Top_6_FEIS_agency, aes(x = tek_term_type, y = count, fill = subj_group)) 
 
 ```
 
+```{r}
+ggsave("figures/Top6AgencySubjectUse.tiff", Top6AgencySubjectUse, device= "tiff", width = 18, height = 22, units="cm", dpi = 600)
+```
 
 
-GOT STUCK HERE
-
-##Top 5 TEK terms from years 2000-2022
-#Plot frequency of use over time (*time) with terms used
+# Plot frequency of TEK-term-use over time (*time) with terms used
 Sample size 249, plot freq, by term, over time
 ```{r}
 #joining the term and interaction of time
@@ -971,51 +996,132 @@ select(record_id, register_date,tek_term_name) %>%
 Term_over_time
 ```
 ```{r}
-ggplot(Term_over_time, aes(x = year, y = n, color = tek_term_name)) +
-  geom_point (stat="identity") + #stat = identity, we have calculated counts already, plot it
-  geom_line () +
-  
-labs(title = "Frequency of TEK Terms Over Time",
-     x = "Year",
-     y = "Frequency",
-     color = "TEK Term") +
-  theme_minimal()
-
-
-# agency_subset %>% 
-#   filter(tek_term_type=="LK") %>% 
-#   ggplot(aes(x=year, y=n, color=subj_group))+
-#   geom_point(stat="identity") +
-#   geom_line()
+Term_over_time |> 
+  group_by(tek_term_name) |> 
+  summarise(frequency= sum(n)) |> 
+  arrange(desc(frequency))
 ```
 
+```{r}
+# top 5 most used TEK terms
+
+Top_5_tek_terms <- Term_over_time |> 
+  group_by(tek_term_name) |> 
+  summarise(frequency= sum(n)) |> 
+  arrange(desc(frequency)) |> 
+  top_n(5) |> 
+  pull(tek_term_name)
+Top_5_tek_terms
+```
+
+```{r}
+Top_5_terms_2000_2020 <- Term_over_time |> 
+  filter(tek_term_name %in% Top_5_tek_terms)
+```
 
 
 ```{r}
-#THIS IS WHERE YOU LEFT OFF if you want to change the colors for graph above
-#we want those labeled as LK near the same color: 3: Traditional Local Knowledge, 11. Local Knowledge, 12. Local Ecological Knowledge, 13. Local Community Knowledge
+#set colors
+#set colors (Option A: journal-safe / colorblind-safe)
 
+color_group_order <- c(
+  "Traditional Knowledge" = "#332288",                # deep indigo
+  "Local Knowledge" = "#AA6F9E",
+  "Traditional Ecological Knowledge" = "#E69F00",     # amber
+  "Ecological Knowledge" = "#009E73",                 # green
+  #"Cultural Knowledge" = "#56B4E9"                    # sky blue
+  "Cultural Knowledge" = "#7A9CC6"
+)
+  # color_group_order<- c(
+  # "Traditional Knowledge" = "#8c564b",
+  # "Traditional Ecological Knowledge" = "#ff7f0e",
+  # "Ecological Knowledge" = "#2ca02c",
+  # "Local Knowledge" = "#da4daf",
+  # "Cultural Knowledge" = "#17becf")
 
-#now lets change the color palette
-# cols <- c(
-#   "Sites" = "#8c564b",
-#   "Traditional Ways of Life" = "#ff7f0e",
-#   "Subsistence resources" = "#da6000",
-#   "Fish and Wildlife" = "#7f7f7f",
-#   "Plants" = "#2ca02c",
-#   "Habitat" = "#9467bd",
-#   "Biophysical Characteristics" = "#7b49a8",
-#   "Water" = "#1f77b4",
-#   "Air Quality" = "#17becf",
-#   "Soil Quality" = "#1294a1",
-#   "Fire" = "#d62728",
-#   "Climate" = "#bcbd22",
-#   "Navigation" = "#e377c2",
-#   "Economics" = "#da4daf",
-#   "Human Health" = "#ffaa0e",
-#   "Environmental Justice" = "#da8d00"
-# )
+ggplot(Top_5_terms_2000_2020, aes(x = year, y = n, color = tek_term_name)) +
+  geom_point (stat="identity") + #stat = identity, we have calculated counts already, plot it
+  geom_line (size=1.5) +
+  scale_color_manual(values=color_group_order) +
+
+labs(#title = "Frequency of TEK Terms Over Time",
+     x = "Year",
+     y = "Frequency",
+     color = "TEK Term") +
+  theme_minimal() +
+  
+  theme(legend.position = "bottom") +
+    guides(color = guide_legend(nrow=2))
+       #axis.text.x = element_text(angle = 45, hjust = 1))
+
+#breaks?? 
+#moving the legend to the open thire space (top-left)
+
 ```
 
-#
+# recreate plot with different visualization - Chatgbt support
+```{r}
+table(Top_5_terms_2000_2020$year)
+```
+
+
+```{r}
+Top_5_terms_2000_2022 <- Term_over_time |> 
+  ungroup() |> 
+  filter(tek_term_name %in% Top_5_tek_terms) |> 
+  tidyr::complete(
+    tek_term_name,
+    year = 2000:2022,
+    fill = list(n = 0)
+  )
+Top_5_terms_2000_2022 
+```
+
+```{r}
+Top_5_terms_2000_2020 <- Term_over_time |> 
+  filter(tek_term_name %in% Top_5_tek_terms)
+
+
+Fig_TEKTerms_OverTime <- ggplot(Top_5_terms_2000_2020, aes(x = year, y = n, color = tek_term_name)) +
+  geom_line(linewidth = 0.95) +
+  geom_point(size = 1.9) +
+  scale_color_manual(values = color_group_order) +
+  scale_x_continuous(
+    breaks = seq(2000, 2022, 2),
+    minor_breaks = 2000:2022
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, 125, 25),
+    limits = c(0, 125)
+  ) +
+  labs(
+    x = "Year",
+    y = "Number of mentions",
+    color = "TEK Term"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = c(0.20, 0.75),
+    legend.background = element_rect(fill = "white", color = NA),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10)
+  ) +
+  guides(color = guide_legend(ncol = 1))
+```
+
+# export
+```{r}
+ggsave(
+  "figures/Top_5_terms_2000_2020.tiff",
+  Fig_TEKTerms_OverTime,
+  device = "tiff",
+  width = 18,
+  height = 13,
+  units = "cm",
+  dpi = 600,
+  compression = "lzw"
+)
+```
+
+
 
